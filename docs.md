@@ -191,6 +191,7 @@ Gue catet semuanya, dari yang bikin malu sampai yang nyaris merusak production. 
 | F12 | Skeleton Caddyfile PRD **bisa bikin 2 bug production** | Dicegah | Baca kode sebelum run |
 | F13 | Skeleton CI PRD gak ada DB → test ke-skip = "hijau palsu" | Dicegah | Rancang CI |
 | F14 | Loop `sleep 45` kena hard timeout 30 detik tool | Kecil (workflow) | Eksekusi |
+| F15 | **Container BE gak bisa telepon Auth lama (`127.0.0.1` vs `host.docker.internal`) → 503 saat live login** | **Tinggi** | Live user test (bang rob) |
 
 **Detail:**
 
@@ -225,6 +226,13 @@ Kalau gue eksekusi skeleton tanpa baca kode PHP + mikirin network namespace, sta
 **F13 — Skeleton CI PRD bisa bikin "hijau palsu".** `backend.yml` versi PRD: `npm test --if-present` tanpa database service. Test integrasi gue butuh Postgres → kalau literal, test **ke-skip** di CI → CI tetap hijau tapi **gak ngetes apa-apa**. Fix: tambah service `postgres` + env `TEST_DATABASE_URL` (deviasi kecil dari skeleton, dicatat di README). **Pelajaran: hijau harus artinya "tesnya jalan", bukan "tesnya dilewati".**
 
 **F14 — Loop polling kena hard timeout tool (2x).** Gue bikin `for … sleep 15/45` buat nunggu CI/Pages deploy → kena timeout 30 detik tool shell, command mati tengah jalan → sempet gue kira CI-nya hang. Fix: pecah jadi cek pendek-pendek.
+
+**F15 — Container BE nembak `127.0.0.1:7002` (AUTH_URL) → loopback container sendiri → 503 saat fetch data lamaran di live.** Ini baru ketahuan pas bang rob login live dan dapet error `"Layanan login sedang tidak terjangkau. Coba lagi nanti"`. Analisisnya:
+- Di `backend-api/.env`, `AUTH_URL` diisi `http://127.0.0.1:7002`.
+- Saat dijalankan via `docker-compose.stack.yml`, `DB_HOST` udah gue override ke `host.docker.internal` (buat Postgres), **tapi `AUTH_URL` lupa dioverride!**
+- Akibatnya, pas request `/api/lamaran` masuk membawa token, BE di dalam container mencoba validasi ke `http://127.0.0.1:7002/api/me` (artinya nembak port 7002 di container dia sendiri, bukan host mesin). Karena di container BE gak ada service di port 7002, request-nya rejected / fetch failed → middleware menganggap Auth server mati → return status **503**.
+- Fix: tambahkan `AUTH_URL: http://host.docker.internal:7002` di bagian `environment` service `backend-api` pada `docker-compose.stack.yml`, lalu restart stack. Langsung solved & token check lolos ke Auth `:7002` host.
+- **Pelajaran: semua endpoint host mesin yang dipanggil oleh container dari bridge network WAJIB mengarah ke `host.docker.internal`, bukan `127.0.0.1`.**
 
 **Near-miss yang gue BERHASIL cegah (gagalnya dicegah, bukan kejadian):**
 - **CORS live:** sebelum push ke porto, gue cek `CORS_ORIGINS` auth PHP — kalau origin Pages gak ada di situ, login live bakal diblokir browser dan **baru ketahuan setelah deploy** (gak ada kredensial buat test login). Untung ada, dan gue cek *sebelum* push, bukan sesudah.

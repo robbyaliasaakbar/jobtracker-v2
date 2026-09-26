@@ -15,8 +15,9 @@ services:
     env_file:
       - ../backend-api/.env
     environment:
-      # Di container, Postgres ada di host (container `postgres` luar stack ini).
+      # Di container, Postgres dan Auth lama (:7002) ada di host (luar stack ini).
       DB_HOST: host.docker.internal
+      AUTH_URL: http://host.docker.internal:7002
     extra_hosts:
       - "host.docker.internal:host-gateway"
     healthcheck:
