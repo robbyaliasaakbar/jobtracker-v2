@@ -224,7 +224,6 @@ Gue catet semuanya, dari yang bikin malu sampai yang nyaris merusak production. 
 
 > **Total 18 kegagalan. 3 di antaranya ketemu di fase PRE-LIVE (F16–F18) — semuanya
 > ketemu bang rob pas ngetes, bukan pas live. Nol user luar yang kena.**
-| F15 | **Container BE gak bisa telepon Auth lama (`127.0.0.1` vs `host.docker.internal`) → 503 saat live login** | **Tinggi** | Live user test (bang rob) |
 
 **Detail:**
 
