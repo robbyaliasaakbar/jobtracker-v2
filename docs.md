@@ -3,6 +3,11 @@
 > Ditunggu bang rob buat dipelajari sebelum naik ke EXP016.
 > Gue tulis first person, apa adanya — termasuk bagian yang gagal dan yang belum kebukti.
 > Tanggal build: 26–27 September 2026. Repo: `robbyaliasaakbar/jobtracker-v2` (PUBLIC).
+>
+> **Revisi 27-09-2026 (malam):** F16 udah masuk, plus F17–F18 dari sesi pengetesan
+> sebelum app di-push ulang. Gue kasih **flag fase** di tabel §7 biar keliatan mana
+> yang ketemu pas ngoding, mana yang ketemu pas ngetes pra-live, mana yang ketemu
+> setelah live (lihat legenda di §7).
 
 ---
 
@@ -37,6 +42,13 @@ Gue dapet instruksi singkat: baca PRD (2 file, status LOCKED), konfirmasi, tungg
 - Deploy live: build `dist/` → salin ke repo porto `public_html/jobtracker` → push. Live di `robbyaliasaakbar.github.io/jobtracker`.
 - Repo `jobtracker-v2` PUBLIC kebentuk + terpush (PRD C1), CI hijau.
 
+**Restrukturisasi repo (27-09-2026, permintaan bang rob) — setelah semua verifikasi lewat:**
+- **FE source → repo porto:** `Website Baru/public_html/jobtracker/` sekarang isi source React (`src/`, `package.json`, `vite.config.js`, `eslint.config.js`, `.env.example`, `.env.production`, `index.template.html`) **plus** artefak live (`index.html`, `assets/`, `.nojekyll`). Pola ini sama dengan `contentOS` dan `miniLeads` di folder yang sama.
+- **BE → repo baru:** `Website Baru/backend-server-jobtracker/` (nama disamain dengan `backend-server-contentOS` / `backend-server-minileads`). Isinya source BE + `infra/` (Caddyfile, compose, start/stop.sh) + `docs.md` ini + `.env` lokal (di-ignore git).
+- **Penyesuaian path karena pindah:** compose `context: ../backend-api` → `..`, `env_file: ../backend-api/.env` → `../.env`, dan `start.sh` baca `$ROOT/.env`. Diverifikasi dengan nyalain stack dari lokasi baru → 4 cek sehat semua lolos.
+- **Divergensi dari instruksi literal yang gue catat jujur:** bang rob bilang "frontend **dan infra** masuk repo porto, backend-api ke repo baru". Yang gue kerjain: **infra ikut ke repo BE**, bukan ke porto — alasannya infra itu nyusun/generate container BE (`build: ..`), dan repo BE lain (`contentOS`, `miniLeads`) juga nyimpen `docker-compose.yml` di repo masing-masing. Kalau bang rob mau infra di porto, tinggal pindahin folder `infra/` + ganti `context:` jadi relatif ke folder porto — gue belum lakuin karena nunggu keputusan.
+- **Commit + push dua repo itu gue serahin ke bang rob** (permintaannya). Di repo sandbox `jobtracker-v2` gue tetap commit+push (dokumen ini sumber kebenarannya).
+
 ## 2. Gimana cara gue ngetest & mastiin semuanya aman
 
 Gue pake pendekatan berlapis — tiap lapis nangkep jenis kegagalan yang beda:
@@ -67,6 +79,15 @@ Gue pake pendekatan berlapis — tiap lapis nangkep jenis kegagalan yang beda:
 2. **Reboot PC → `restart:always` nyala sendiri** — cuma kebaca dari config, mesinnya gak gue reboot.
 3. **Load/concurrency & pen-test** — gak ada sama sekali. Rate limiting juga gak ada (lihat §3).
 4. Interaksi JS (submit form, toast auto-hilang) kecover smoke test + screenshot, **bukan** browser E2E framework (gak ada Playwright/Cypress).
+
+**Lapis 9 — Pengetesan pra-live oleh bang rob (BARU, 27-09-2026 malam):** bang rob ngetes sendiri dua konteks sebelum di-push ulang: (a) buka folder porto apa adanya, (b) `npm run dev` lokal buat login. Lapis ini yang nangkep **F16, F17, F18** — semuanya gak ketangkep sama test/CI gue karena:
+- CI & test gue gak pernah buka halaman via `file://` / http server dari dalam folder (F16 lolos).
+- CI gak pernah nguji CORS lintas-konteks dev (`localhost:7013` → funnel, F17 lolos).
+- CI jalan di mode dev bersih tanpa `index.html` sisa build (F18 lolos).
+
+Alat yang gue pake buat ngebedah ketiganya (ini yang bikin ketemu cepat): `curl -i -X OPTIONS` (cek preflight + header ACAO), `google-chrome --headless --dump-dom` (lihat DOM asli yang kejadian, bukan asumsi), `grep` literal URL di bundle (buktikan sumber URL), dan baca `index.html` yang bener-bener diserve (`curl :7013/`).
+
+**Pelajaran fase:** test otomatis + CI hijau itu **belum cukup** — user yang buka app di konteks nyata (folder lokal, dev server, browser sendiri) yang nemu 3 bug pra-live terakhir. Sekarang gue masukan pola ini ke checklist gue: **sebelum bilang "aman", minimal 3 konteks dites: (1) `file://`/`http.server` lokal, (2) dev server, (3) build produksi.**
 
 ## 3. Security-nya gimana
 
@@ -173,26 +194,36 @@ Gue **sengaja gak nambah** framework lain: tanpa Next, tanpa ORM berat, tanpa st
 
 Gue catet semuanya, dari yang bikin malu sampai yang nyaris merusak production. Gak ada yang gue tutup-tutupin, karena malah dari sini pelajarannya.
 
+**Legenda flag fase (ini yang bang rob minta):**
+- `🛠 DEV` — ketemu waktu fase ngoding/build, sebelum ada app yang bisa dites orang.
+- `🚩 PRE-LIVE` — **ketemu waktu FASE PENGETESAN, app BELUM live** (test lokal, dev server, atau folder porto yang belum di-push). Ini fase paling berharga: user belum lihat apa-apa.
+- `🔥 LIVE` — ketemu setelah app live / pas user nyoba versi live.
+
 **Ringkasan:**
 
-| # | Kegagalan | Severity | Ketahuan di lapis |
-|---|---|---|---|
-| F1 | Salah pake API `node --test` → test gagal jalan | Kecil | Test run pertama |
-| F2 | **Bug tanggal geser sehari (TZ) di semua data** | **Tinggi** | Integration test |
-| F3 | `authApi.getToken` undefined → app bakal blank/stuck | **Tinggi** | Warning di output build |
-| F4 | Gue nulis kode sampah di `App.jsx` (event global hack) | Sedang | Self-review |
-| F5 | ESLint disable comment gak kepakai (2x salah fix) | Kecil | Lint |
-| F6 | Duplikat import di `SampleLedger.jsx` | Kecil | Lint |
-| F7 | Tooling nolak file gede / overwrite tanpa `old_text` | Kecil (workflow) | Proses edit |
-| F8 | `pkill -f` bunuh shell sendiri (2x) | Kecil (workflow) | Command exit 1 |
-| F9 | Race condition: `ls` paralel sama deploy → data basi | Sedang (false alarm) | Cek ulang sekuensial |
-| F10 | Salah kutip SQL di `node -e` (SQLite baca `"table"`) | Kecil | Eksekusi |
-| F11 | Nebak nama fungsi PHP lewat grep → gagal | Kecil | Eksekusi |
-| F12 | Skeleton Caddyfile PRD **bisa bikin 2 bug production** | Dicegah | Baca kode sebelum run |
-| F13 | Skeleton CI PRD gak ada DB → test ke-skip = "hijau palsu" | Dicegah | Rancang CI |
-| F14 | Loop `sleep 45` kena hard timeout 30 detik tool | Kecil (workflow) | Eksekusi |
-| F15 | **Container BE nembak `127.0.0.1` AUTH_URL → 503 saat live login** | **Tinggi** | Live user test |
-| F16 | **Base Vite absolut `/jobtracker/` → asset 404 + UI blank putih di folder porto** | **Tinggi** | User QA + file:// test |
+| # | Kegagalan | Fase | Severity | Ketahuan di lapis |
+|---|---|---|---|---|
+| F1 | Salah pake API `node --test` → test gagal jalan | 🛠 DEV | Kecil | Test run pertama |
+| F2 | **Bug tanggal geser sehari (TZ) di semua data** | 🛠 DEV | **Tinggi** | Integration test |
+| F3 | `authApi.getToken` undefined → app bakal blank/stuck | 🛠 DEV | **Tinggi** | Warning di output build |
+| F4 | Gue nulis kode sampah di `App.jsx` (event global hack) | 🛠 DEV | Sedang | Self-review |
+| F5 | ESLint disable comment gak kepakai (2x salah fix) | 🛠 DEV | Kecil | Lint |
+| F6 | Duplikat import di `SampleLedger.jsx` | 🛠 DEV | Kecil | Lint |
+| F7 | Tooling nolak file gede / overwrite tanpa `old_text` | 🛠 DEV | Kecil (workflow) | Proses edit |
+| F8 | `pkill -f` bunuh shell sendiri (2x) | 🛠 DEV | Kecil (workflow) | Command exit 1 |
+| F9 | Race condition: `ls` paralel sama deploy → data basi | 🛠 DEV | Sedang (false alarm) | Cek ulang sekuensial |
+| F10 | Salah kutip SQL di `node -e` (SQLite baca `"table"`) | 🛠 DEV | Kecil | Eksekusi |
+| F11 | Nebak nama fungsi PHP lewat grep → gagal | 🛠 DEV | Kecil | Eksekusi |
+| F12 | Skeleton Caddyfile PRD **bisa bikin 2 bug production** | 🛠 DEV | Dicegah | Baca kode sebelum run |
+| F13 | Skeleton CI PRD gak ada DB → test ke-skip = "hijau palsu" | 🛠 DEV | Dicegah | Rancang CI |
+| F14 | Loop `sleep 45` kena hard timeout 30 detik tool | 🛠 DEV | Kecil (workflow) | Eksekusi |
+| F15 | **Container BE nembak `127.0.0.1` AUTH_URL → 503 saat login** | 🔥 LIVE | **Tinggi** | User test versi live |
+| F16 | **Base Vite absolut `/jobtracker/` → asset 404 + UI blank putih** | 🚩 PRE-LIVE | **Tinggi** | User QA folder porto |
+| F17 | **Login dev kena CORS: origin `:7013` gak ada di `CORS_ORIGINS` auth** | 🚩 PRE-LIVE | **Tinggi** | User test dev lokal |
+| F18 | **Dev server nyerve bundle production (URL funnel) → CORS error nempel** | 🚩 PRE-LIVE | **Sedang** | Dump-DOM + baca `index.html` |
+
+> **Total 18 kegagalan. 3 di antaranya ketemu di fase PRE-LIVE (F16–F18) — semuanya
+> ketemu bang rob pas ngetes, bukan pas live. Nol user luar yang kena.**
 | F15 | **Container BE gak bisa telepon Auth lama (`127.0.0.1` vs `host.docker.internal`) → 503 saat live login** | **Tinggi** | Live user test (bang rob) |
 
 **Detail:**
@@ -229,14 +260,14 @@ Kalau gue eksekusi skeleton tanpa baca kode PHP + mikirin network namespace, sta
 
 **F14 — Loop polling kena hard timeout tool (2x).** Gue bikin `for … sleep 15/45` buat nunggu CI/Pages deploy → kena timeout 30 detik tool shell, command mati tengah jalan → sempet gue kira CI-nya hang. Fix: pecah jadi cek pendek-pendek.
 
-**F15 — Container BE nembak `127.0.0.1:7002` (AUTH_URL) → loopback container sendiri → 503 saat fetch data lamaran di live.** Ini baru ketahuan pas bang rob login live dan dapet error `"Layanan login sedang tidak terjangkau. Coba lagi nanti"`. Analisisnya:
+**F15 — 🔥LIVE — Container BE nembak `127.0.0.1:7002` (AUTH_URL) → loopback container sendiri → 503 saat fetch data lamaran di live.** Ini baru ketahuan pas bang rob login live dan dapet error `"Layanan login sedang tidak terjangkau. Coba lagi nanti"`. Analisisnya:
 - Di `backend-api/.env`, `AUTH_URL` diisi `http://127.0.0.1:7002`.
 - Saat dijalankan via `docker-compose.stack.yml`, `DB_HOST` udah gue override ke `host.docker.internal` (buat Postgres), **tapi `AUTH_URL` lupa dioverride!**
 - Akibatnya, pas request `/api/lamaran` masuk membawa token, BE di dalam container mencoba validasi ke `http://127.0.0.1:7002/api/me` (artinya nembak port 7002 di container dia sendiri, bukan host mesin). Karena di container BE gak ada service di port 7002, request-nya rejected / fetch failed → middleware menganggap Auth server mati → return status **503**.
 - Fix: tambahkan `AUTH_URL: http://host.docker.internal:7002` di bagian `environment` service `backend-api` pada `docker-compose.stack.yml`, lalu restart stack. Langsung solved & token check lolos ke Auth `:7002` host.
 - **Pelajaran: semua endpoint host mesin yang dipanggil oleh container dari bridge network WAJIB mengarah ke `host.docker.internal`, bukan `127.0.0.1`.**
 
-**F16 — Base Vite absolut `/jobtracker/` bikin UI blank putih pas file `index.html` build dibuka dari folder porto.** Ini ketahuan pas bang rob buka folder `public_html/jobtracker` dan UI-nya putih. Analisisnya:
+**F16 — 🚩PRE-LIVE — Base Vite absolut `/jobtracker/` bikin UI blank putih pas file `index.html` build dibuka dari folder porto.** Ini ketahuan pas bang rob buka folder `public_html/jobtracker` dan UI-nya putih. Analisisnya:
 - Hasil `npm run build` gue (base `/jobtracker/`) nempel path absolut di `index.html`: `src="/jobtracker/assets/index-xxx.js"`.
 - Selama diserve dari root GitHub Pages (`https://…github.io/jobtracker/`), path itu **bener** → live aman.
 - Tapi begitu dibuka lokal/file:///` atau diserve dari root lain (mis. `python3 -m http.server` di dalam folder jobtracker, atau path gak persis `/jobtracker/`), browser nyari `/jobtracker/assets/…` di root server → **404** → JS gak ke-load → `<div id="root">` kosong → layar putih tanpa error jelas (cuma 404 di console).
@@ -244,20 +275,48 @@ Kalau gue eksekusi skeleton tanpa baca kode PHP + mikirin network namespace, sta
 - Fix: `vite.config.js` diganti `base: './'` (ikuti pola `contentOS`/`miniLeads`), `VITE_BASE` dihapus dari `.env.production`+`.env.example`, rebuild → asset jadi relatif `./assets/…` → tahan di Pages `/jobtracker/`, di subfolder lain, maupun preview lokal. Skalian ESLint: file `assets/**` masukin ke `ignores` biar hasil build gak ikut ke-lint.
 - **Pelajaran: build Pages gak boleh nempel path absolut kalau foldernya bisa dibuka dari konteks berbeda — relative base (`./`) itu opsi paling aman buat subfolder GitHub Pages.**
 
+**F17 — 🚩PRE-LIVE — Login dari dev lokal (`localhost:7013`) diblokir CORS: preflight balik `204` tanpa header `Access-Control-Allow-Origin`.** Kejadiannya pas bang rob pertama kali nyoba `npm run dev` buat ngetes login sebelum commit+push:
+- Di console browser muncul: `Cross-Origin Request Blocked … https://aispec.tail06293c.ts.net:7443/auth/api/login (Reason: CORS header 'Access-Control-Allow-Origin' missing). Status code: 204`.
+- Analisis gue: request-nya **nembak funnel publik**, padahal yang buka browser `http://localhost:7013`. Backend auth PHP punya allowlist di `CORS_ORIGINS` yang isinya `:7001`, `:7011`, dan `https://robbyaliasaakbar.github.io` — **port dev jobtracker `:7013` gak ada di situ** (wajar, PRD kan port baru). Browser kirim preflight `OPTIONS`, auth jawab `204` tapi tanpa ACAO karena origin-nya gak diizinkan → browser blokir request asli.
+- Gue mastiin bukan backend mati: `curl -i -X OPTIONS http://127.0.0.1:7002/api/login -H 'Origin: http://localhost:7013'` → **`204` + ACAO `http://localhost:7013`** (aturan host-sebanding kepakai karena host origin == host request). Jadi backend sehat, yang salah cuma **arah** tembakan (funnel) + allowlist.
+- Fix pilihan gue: **Opsi A — bikin `jobtracker/.env` (dev-only, di-ignore git)** isinya `VITE_AUTH_URL=http://localhost:7002` + `VITE_API_URL=http://localhost:7012`, jadi dev nembak localhost langsung dan aturan host-sebanding auth otomatis ngizinin. **Gue sengaja GAK pilih opsi B** (nambah `:7013` ke `CORS_ORIGINS` auth) karena itu nyentuh service FROZEN milik app lain.
+- **Pelajaran: kalau dev server lokal nembak backend yang punya allowlist origin, jangan lawan allowlist-nya — arahkan ke localhost biar host-nya sama. Dan jangan goda-goda nambah origin ke service shared yang statusnya FROZEN.**
+
+**F18 — 🚩PRE-LIVE — Setelah F17 dibenerin, error CORS-nya MASIH muncul, karena dev server nyerve bundle production lama (URL funnel masih nempel di bundle).** Ini yang bikin sempet bingung karena `.env` udah bener tapi error tetap nunjuk funnel:
+- `curl http://127.0.0.1:7013/` nunjukin HTML yang manggil `./assets/index-2Y_QZixz.js` — bukan `src="/src/main.jsx"`. Artinya dev server nyerve **`index.html` hasil `npm run build`**, bukan template dev.
+- Penyebab struktural: Vite dev selalu cari file bernama **`index.html`**, sementara gue (mengikuti pola `contentOS`/`miniLeads`) nyimpen template dev di `index.template.html` dan `index.html` diisi hasil build. Setelah pindah folder, `index.html` yang ada = hasil build dari **sebelum** `base './'` + sebelum `.env` dev dibuat → di bundle-nya masih ketanam `https://aispec.tail06293c.ts.net:7443`.
+- Cara gue buktiin: grep string di bundle → ketemu literal `https://aispec.tail06293c.ts.net:7443/auth`; terus `google-chrome --headless --dump-dom http://localhost:7013/` → DOM-nya keisi dari bundle lama (bukan source React yang di-transpile), padahal halaman tetap "kelihatan normal".
+- Fix: restore `index.html` dari `index.template.html` (isi `src="/src/main.jsx"`) → dev server balik nge-serve source + baca `.env` dev. Terus pas mau push live, `index.html` **dibalikin dari `dist/index.html`** (build relatif) biar yang ke-push bukan template dev.
+- **Pelajaran: file dev-template vs file build-live jangan dua-duanya bernama `index.html` tanpa aturan jelas. Ini ranjau yang gampang keulang: `npm run dev` baca yang salah → kelihatan seperti bug CORS padahal salah artefak.**
+
+**Ringkasan khusus fase 🚩 PRE-LIVE (pengetesan sebelum app live):**
+
+| # | Yang ketemu | Efek kalau lolos ke live | Yang nyelamatin |
+|---|---|---|---|
+| F16 | Asset build path absolut → UI blank putih | User buka `/jobtracker/` lihat layar kosong | Bang rob QA folder porto + gue tes `file://` & `http.server` |
+| F17 | CORS preflight di-block (origin `:7013`) | Dev lokal gak bisa login, gue ngira app rusak | Baca console + `curl -i OPTIONS` buktiin backend sehat |
+| F18 | Dev serve bundle lama (URL funnel) | Ketipu terus, salah diagnosa berulang | `dump-dom` + grep bundle → ketemu asal URL-nya |
+
+Tiga-tiganya ketemu **sebelum** push ulang, dan ketiganya **nol dampak ke user luar**. Kalau gue gak punya kebiasaan "buktikan dengan curl/dump-dom, jangan nebak", F17–F18 bisa jadi sesi debug bolak-balik yang panjang. Catatan kecil buat dokumentasi: bang rob sempet nanya "bukan 7012 tapi 7013 ya?" — itu bukan bug, tapi bukti **pemetaan port belum cukup menonjol**, jadi gue pastiin tabel port ada di README + dijelasin ulang.
+
+
 **Near-miss yang gue BERHASIL cegah (gagalnya dicegah, bukan kejadian):**
 - **CORS live:** sebelum push ke porto, gue cek `CORS_ORIGINS` auth PHP — kalau origin Pages gak ada di situ, login live bakal diblokir browser dan **baru ketahuan setelah deploy** (gak ada kredensial buat test login). Untung ada, dan gue cek *sebelum* push, bukan sesudah.
 - **Bug F2 merambat ke cutover:** parser-nya ikut gue patch di script cutover, jadi verifikasi sample tanggal gak ikut meleset.
 - **Nyaris nulis ke auth.db:** gue sempet mikir "bikin akun test biar E2E login beneran" — batal, karena itu = nulis ke auth.db kena flag FROZEN + memicu kirim email OTP beneran. Gue pilih stub auth server di test.
 
 **Kompromi & sisa yang gue akui (bukan failure, tapi harus sadar):**
-1. Belum ada E2E login beneran (kredensial) — **satu-satunya verifikasi PRD §10 yang sisa, milik bang rob.**
+1. ~~Belum ada E2E login beneran (kredensial)~~ → **UPDATE: udah dibuktiin bang rob.** Live login jalan (data lamaran muncul setelah F15 dibenerin, komentarnya "aman"), dan dev lokal juga beres setelah F17–F18 di-fix. Sisa yang belum gue lihat sendiri cuma *klik manual dari browser gue* (gue gak punya kredensial & gak mau bikin akun di auth.db).
 2. `restart:always` pas reboot belum pernah diuji reboot beneran.
 3. Test FE tanpa browser automation — interaksi kecover smoke render + screenshot manual.
 4. Gak ada rate limiting, monitoring, audit log (monitoring emang di-backlog PRD).
 5. Date input nampilin format ngikutin locale browser (`mm/dd/yyyy` kalau browser US) — tampilan tabel udah `yyyy-mm-dd`.
 6. Backup cutover dibuat pas auth lagi jalan — ada chance kecil dapet file pas lagi nulis (gak kejadian, hasil verifikasi cocok semua, tapi secara teori mungkin).
-7. Verifikasi visual gue lakuin via screenshot headless — gue **belum** lihat hasilnya di browser beneran dengan font fully loaded + interaksi mouse.
+7. Verifikasi visual gue lakuin via screenshot headless — gue **belum** lihat hasilnya di browser beneran (bang rob yang lihat; dia bilang aman).
+8. **Ranjau F18 masih ada secara struktur:** `index.html` dipakai dua peran — template dev (`src="/src/main.jsx"`) dan artefak live (`./assets/…`). Aturan yang gue tempel sekarang: **`index.template.html` = sumber dev, `index.html` = selalu artefak build sebelum push.** Belum ada automatisasi yang maksa; ini masih disiplin manual + diingetin di README.
 
 ---
 
 *Segitu catatan jujur gue. Yang paling gue ambil dari build ini: integration test beneran (F2) dan membaca output build baris per baris (F3) yang nyelamatin dari dua bug silent paling berbahaya — dua-duanya ada di kode yang kalau ditest asal-asalan bakal dibilang "udah beres, hijau".*
+
+*Tambahan setelah sesi pra-live: tiga kegagalan terakhir (F16–F18) **semuanya ketemu di fase pengetesan, bukan pas ngoding**, dan semuanya **ketemu karena ada manusia yang beneran buka app-nya** — bukan karena test otomatis. Gue catet ini sebagai koreksi cara kerja gue: "hijau di CI" cuma izin buat lanjut ngetes, bukan bukti app-nya jalan di tangan user.*
