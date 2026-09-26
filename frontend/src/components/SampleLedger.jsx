@@ -1,3 +1,6 @@
+import { DoubleRule } from './ui.jsx';
+import { StatusBadge } from './StatusBadge.jsx';
+
 // Kolom kanan halaman login: contoh halaman buku besar (data REKAAN,
 // bukan data asli user) + stempel vermilion sebagai satu aksen berani.
 
@@ -8,8 +11,6 @@ const CONTOH = [
   ['2026-09-11', 'Sentra Medika', 'Platform Engineer', 'ditolak'],
   ['2026-09-05', 'Bumi Energi', 'Node.js Developer', 'offering'],
 ];
-
-import { DoubleRule } from './ui.jsx';
 
 export function SampleLedger() {
   return (
@@ -29,7 +30,7 @@ export function SampleLedger() {
               <span className="block text-sm font-medium leading-snug">{pt}</span>
               <span className="block text-xs text-ink/70 leading-snug">{pos}</span>
             </span>
-            <span className="font-mono text-[0.7rem] text-graphite">{st}</span>
+            <StatusBadge status={st} />
           </li>
         ))}
       </ul>
