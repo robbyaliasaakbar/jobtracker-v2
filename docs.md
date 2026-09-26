@@ -27,7 +27,7 @@ Gue dapet instruksi singkat: baca PRD (2 file, status LOCKED), konfirmasi, tungg
 - Gue bikin design plan dulu sebelum ngoding (brief anti AI-slop): konsep **"buku besar lamaran"** — palet kertas `#F6F2E9` + tinta `#16181C` + satu aksen stempel vermilion `#C2412D`, tipografi Fraunces (display) + IBM Plex Sans/Mono (data), layout ledger hairline bukan card shadow.
 - Full baru: `src/{api,components,pages,store,data,styles}`. Store pake `useReducer` + context polos (tanpa zustand/redux), routing pake state (tanpa react-router) — FE v1 juga gitu, cukup buat 2 layar.
 - 5 mode auth (masuk/daftar/OTP/lupa/reset) ngomong ke auth frozen, dashboard dengan strip pipeline 7 status + tabel ledger desktop / kartu mobile + modal form, layar "Server sedang tidur" buat di luar jam operasional.
-- `.env.production` diarahkan ke funnel `https://aispec.tail06293c.ts.net:7443` (+ suffix `/auth`), base Pages `/jobtracker/`.
+- `.env.production` diarahkan ke funnel `https://aispec.tail06293c.ts.net:7443` (+ suffix `/auth`); asset build **relatif** (`base: './'`, lihat F16).
 
 **Infra & CI:**
 - `infra/Caddyfile` (1 pintu 7014), `docker-compose.stack.yml` (backend-api + caddy, healthcheck, `restart:always`), `start.sh`/`stop.sh` dengan verifikasi 4 endpoint otomatis.
@@ -49,7 +49,7 @@ Gue pake pendekatan berlapis — tiap lapis nangkep jenis kegagalan yang beda:
 
 **Lapis 3 — Integration test (yang paling berbobot):** CRUD penuh against Postgres beneran (`jobtracker_v2_test`, auto-create kalau belum ada) + **stub auth server** lokal (deterministik, gak peduli `:7002` hidup/mati). Gue uji: create → list → edit → delete, **isolasi antar pemilik** (baris user lain disuntik langsung ke DB — gak boleh muncul di list; edit baris orang lain → 404), validasi → 422, tanpa token → 401. Test inilah yang nangkep bug tanggal (F2).
 
-**Lapis 4 — Build & image:** `npm run build` sampai `dist/index.html + assets/` dengan base `/jobtracker/` bener, `docker build` dua-duanya (target `runner`), `npm ci` harus mulus (lockfile ke-commit).
+**Lapis 4 — Build & image:** `npm run build` sampai `dist/index.html + assets/` dengan asset path **relatif** (`./assets/`, lihat F16), `docker build` dua-duanya (target `runner`), `npm ci` harus mulus (lockfile ke-commit).
 
 **Lapis 5 — Runtime live (curl beneran):**
 - Lokal: `:7012/health` → `{"ok":true}`; `:7012/api/lamaran` tanpa token → 401 (bukti nyambung ke auth asli); `:7014/health` → 200; `:7014/api/health` → 200 (proxy BE); `:7014/auth/api/me` → 401 (proxy auth jalan, strip_prefix bener).
@@ -191,6 +191,8 @@ Gue catet semuanya, dari yang bikin malu sampai yang nyaris merusak production. 
 | F12 | Skeleton Caddyfile PRD **bisa bikin 2 bug production** | Dicegah | Baca kode sebelum run |
 | F13 | Skeleton CI PRD gak ada DB → test ke-skip = "hijau palsu" | Dicegah | Rancang CI |
 | F14 | Loop `sleep 45` kena hard timeout 30 detik tool | Kecil (workflow) | Eksekusi |
+| F15 | **Container BE nembak `127.0.0.1` AUTH_URL → 503 saat live login** | **Tinggi** | Live user test |
+| F16 | **Base Vite absolut `/jobtracker/` → asset 404 + UI blank putih di folder porto** | **Tinggi** | User QA + file:// test |
 | F15 | **Container BE gak bisa telepon Auth lama (`127.0.0.1` vs `host.docker.internal`) → 503 saat live login** | **Tinggi** | Live user test (bang rob) |
 
 **Detail:**
@@ -233,6 +235,14 @@ Kalau gue eksekusi skeleton tanpa baca kode PHP + mikirin network namespace, sta
 - Akibatnya, pas request `/api/lamaran` masuk membawa token, BE di dalam container mencoba validasi ke `http://127.0.0.1:7002/api/me` (artinya nembak port 7002 di container dia sendiri, bukan host mesin). Karena di container BE gak ada service di port 7002, request-nya rejected / fetch failed → middleware menganggap Auth server mati → return status **503**.
 - Fix: tambahkan `AUTH_URL: http://host.docker.internal:7002` di bagian `environment` service `backend-api` pada `docker-compose.stack.yml`, lalu restart stack. Langsung solved & token check lolos ke Auth `:7002` host.
 - **Pelajaran: semua endpoint host mesin yang dipanggil oleh container dari bridge network WAJIB mengarah ke `host.docker.internal`, bukan `127.0.0.1`.**
+
+**F16 — Base Vite absolut `/jobtracker/` bikin UI blank putih pas file `index.html` build dibuka dari folder porto.** Ini ketahuan pas bang rob buka folder `public_html/jobtracker` dan UI-nya putih. Analisisnya:
+- Hasil `npm run build` gue (base `/jobtracker/`) nempel path absolut di `index.html`: `src="/jobtracker/assets/index-xxx.js"`.
+- Selama diserve dari root GitHub Pages (`https://…github.io/jobtracker/`), path itu **bener** → live aman.
+- Tapi begitu dibuka lokal/file:///` atau diserve dari root lain (mis. `python3 -m http.server` di dalam folder jobtracker, atau path gak persis `/jobtracker/`), browser nyari `/jobtracker/assets/…` di root server → **404** → JS gak ke-load → `<div id="root">` kosong → layar putih tanpa error jelas (cuma 404 di console).
+- Gue buktiin dengan: `file://` (blank, 2.137 byte), `http.server` dari dalam folder (blank + log 404 `/jobtracker/assets/…`), head serial, dan bandingin dengan ContentOS yang pola `base: './'` + asset relatif (`./assets/…`) — itu yang loading bener.
+- Fix: `vite.config.js` diganti `base: './'` (ikuti pola `contentOS`/`miniLeads`), `VITE_BASE` dihapus dari `.env.production`+`.env.example`, rebuild → asset jadi relatif `./assets/…` → tahan di Pages `/jobtracker/`, di subfolder lain, maupun preview lokal. Skalian ESLint: file `assets/**` masukin ke `ignores` biar hasil build gak ikut ke-lint.
+- **Pelajaran: build Pages gak boleh nempel path absolut kalau foldernya bisa dibuka dari konteks berbeda — relative base (`./`) itu opsi paling aman buat subfolder GitHub Pages.**
 
 **Near-miss yang gue BERHASIL cegah (gagalnya dicegah, bukan kejadian):**
 - **CORS live:** sebelum push ke porto, gue cek `CORS_ORIGINS` auth PHP — kalau origin Pages gak ada di situ, login live bakal diblokir browser dan **baru ketahuan setelah deploy** (gak ada kredensial buat test login). Untung ada, dan gue cek *sebelum* push, bukan sesudah.
