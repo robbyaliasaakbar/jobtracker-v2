@@ -2,7 +2,12 @@
 
 > Ditunggu bang rob buat dipelajari sebelum naik ke EXP016.
 > Gue tulis first person, apa adanya — termasuk bagian yang gagal dan yang belum kebukti.
-> Tanggal build: 26–27 September 2026. Repo: `robbyaliasaakbar/jobtracker-v2` (PUBLIC).
+> Tanggal build: 26–27 September 2026.
+>
+> **Catatan status repo (setelah build selesai):** repo sandbox `jobtracker-v2` cuma dipakai
+> selama build; setelah pindah struktur, **source aktif pindah ke: FE di repo porto
+> (`robbyaliasaakbar.github.io`, folder `jobtracker/`) dan BE/infra di repo ini**
+> (`backend-server-jobtracker`). Referensi ke `jobtracker-v2` di bawah = catatan historis.
 >
 > **Revisi 27-09-2026 (malam):** F16 udah masuk, plus F17–F18 dari sesi pengetesan
 > sebelum app di-push ulang. Gue kasih **flag fase** di tabel §7 biar keliatan mana
@@ -40,7 +45,7 @@ Gue dapet instruksi singkat: baca PRD (2 file, status LOCKED), konfirmasi, tungg
 - 2 workflow GitHub Actions sesuai skeleton PRD + tambahan service Postgres (lihat F13).
 - Cutover beneran dijalanin: **4 baris pindah, COUNT cocok, sample cocok**, backup `auth.db.bak-cutover-*`.
 - Deploy live: build `dist/` → salin ke repo porto `public_html/jobtracker` → push. Live di `robbyaliasaakbar.github.io/jobtracker`.
-- Repo `jobtracker-v2` PUBLIC kebentuk + terpush (PRD C1), CI hijau.
+- Repo `jobtracker-v2` PUBLIC kebentuk + terpush (PRD C1), CI hijau. *(historis — repo sandbox ini nanti diarsip/dihapus setelah struktur pindah ke porto + repo BE)*
 
 **Restrukturisasi repo (27-09-2026, permintaan bang rob) — setelah semua verifikasi lewat:**
 - **FE source → repo porto:** `Website Baru/public_html/jobtracker/` sekarang isi source React (`src/`, `package.json`, `vite.config.js`, `eslint.config.js`, `.env.example`, `.env.production`, `index.template.html`) **plus** artefak live (`index.html`, `assets/`, `.nojekyll`). Pola ini sama dengan `contentOS` dan `miniLeads` di folder yang sama.
@@ -160,7 +165,7 @@ Pola: **static SPA + API terpisah + auth terpisah, disatukan 1 reverse proxy** (
 
 **Port booking:** BE 7012 · FE dev 7013 · Caddy 7014 · Funnel 7443 · Auth 7002 · Postgres 5432 (reuse). Yang lama (443/8443/9443/10000) gak disentuh.
 
-**Deployment:** FE = build statis → push repo porto. BE + infra = repo `jobtracker-v2` + Docker. `restart:always` → PC nyala, stack nyala sendiri (operasi manual 08.00–21.00 WIB by design).
+**Deployment:** FE = build statis → push repo porto (`robbyaliasaakbar.github.io`). BE + infra = repo `backend-server-jobtracker` + Docker. `restart:always` → PC nyala, stack nyala sendiri (operasi manual 08.00–21.00 WIB by design).
 
 ## 5. Framework-nya apa aja
 
