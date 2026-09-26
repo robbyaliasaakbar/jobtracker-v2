@@ -1,0 +1,18 @@
+# infra/Caddyfile — 1 pintu :7014 (PRD §4)
+# Catatan: strip_prefix /auth karena auth PHP frozen butuh path persis /api/*.
+:7014 {
+  handle /api/* {
+    reverse_proxy 127.0.0.1:7012
+  }
+  handle /auth/* {
+    uri strip_prefix /auth
+    reverse_proxy 127.0.0.1:7002
+  }
+  handle /health {
+    respond "ok" 200
+  }
+  log {
+    output stdout
+    format json
+  }
+}

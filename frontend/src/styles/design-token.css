@@ -1,0 +1,25 @@
+/* Design token Jobtracker — "buku besar lamaran".
+   Palet: kertas + tinta + satu aksen stempel vermilion. Bukan template. */
+
+@theme {
+  /* Warna */
+  --color-paper: #f6f2e9; /* latar halaman — kertas buku besar */
+  --color-paper-raised: #fcfaf5; /* permukaan naik — modal, kartu */
+  --color-ink: #16181c; /* tinta utama — teks & tombol */
+  --color-rule: #e2dbca; /* garis rambut pemisah baris */
+  --color-stamp: #c2412d; /* aksen tunggal — stempel vermilion */
+  --color-graphite: #63655e; /* teks sekunder */
+  --color-ochre: #a9741c; /* status: interview HR */
+  --color-steel: #37627e; /* status: technical test */
+  --color-plum: #7c4b63; /* status: interview user */
+  --color-moss: #3e6b4e; /* status: diterima */
+  --color-faded: #8a8c84; /* status: ditolak / mati */
+
+  /* Huruf */
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Radius: cetakan — hampir tajam */
+  --radius-sharp: 2px;
+}

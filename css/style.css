@@ -1,0 +1,146 @@
+/* Job Tracker - style.css
+   Adaptasi dari portfolio Website Baru:
+   token ink/paper/accent, font Manrope/Inter, eyebrow, grid, tombol, reveal, hover.
+   Chart (warna garis, bar, legend) DIKUNCI, jangan diubah dari sini.
+*/
+
+:root {
+  --ink: #0C0C0C;
+  --paper: #FFFFFF;
+  --accent: #D70000;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .font-display {
+  font-family: 'Manrope', 'Inter', sans-serif;
+}
+
+::selection { background-color: var(--accent); color: #FFFFFF; }
+
+/* Navbar: transparan -> blur putih pas scroll */
+#site-navbar {
+  background-color: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background-color .3s ease, border-color .3s ease, backdrop-filter .3s ease;
+}
+#site-navbar.nav-scrolled {
+  background-color: rgba(255, 255, 255, .88);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom-color: rgba(12, 12, 12, .08);
+}
+
+/* Eyebrow label khas portfolio */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: .625rem;
+  font-family: 'Manrope', sans-serif;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.eyebrow::before {
+  content: '';
+  width: 2rem;
+  height: 2px;
+  background-color: var(--accent);
+}
+
+/* Grid blueprint halus */
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(12, 12, 12, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(12, 12, 12, .045) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 90% 80% at 50% 20%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 90% 80% at 50% 20%, #000 40%, transparent 100%);
+  pointer-events: none;
+}
+
+/* Section gelap */
+.bg-dark-section { background-color: var(--ink); }
+
+/* Tombol portfolio */
+.btn-primary { transition: background-color .25s ease, transform .25s ease, box-shadow .25s ease; }
+.btn-primary:hover {
+  background-color: var(--accent) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -10px rgba(215, 0, 0, .5);
+}
+.btn-outline { transition: border-color .25s ease, color .25s ease, background-color .25s ease, transform .25s ease; }
+.btn-outline:hover {
+  border-color: var(--ink);
+  background-color: var(--ink);
+  color: #FFFFFF;
+  transform: translateY(-2px);
+}
+
+/* Scroll reveal ala portfolio */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity .7s cubic-bezier(.22, .61, .36, 1), transform .7s cubic-bezier(.22, .61, .36, 1);
+  will-change: opacity, transform;
+}
+[data-reveal].revealed { opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal] { opacity: 1; transform: none; transition: none; }
+  html { scroll-behavior: auto; }
+}
+
+/* Kartu statistik hover naik kayak exp-card */
+.jt-lift { transition: transform .35s ease, box-shadow .35s ease, border-color .35s ease; }
+.jt-lift:hover {
+  transform: translateY(-4px);
+  border-color: var(--ink);
+  box-shadow: 0 20px 40px -18px rgba(12, 12, 12, .25);
+}
+
+/* Baris baru masuk: fade + naik dikit */
+@keyframes jt-fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.jt-row-new { animation: jt-fade-up 0.3s ease; }
+
+/* Badge status: transisi warna halus pas ganti status (warna badge DIKUNCI) */
+.jt-badge { transition: background-color 0.25s ease, color 0.25s ease; }
+
+/* Progress bar chart: lebar berubah animasi 0.8 detik (warna DIKUNCI) */
+.jt-bar { transition: width 0.8s ease; }
+
+/* Toast: muncul dari atas */
+@keyframes jt-toast-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.jt-toast { animation: jt-toast-in 0.25s ease; }
+
+/* Tombol kerasa dipencet */
+.jt-btn:active { transform: scale(0.97); }
+.jt-btn { transition: transform 0.1s ease, background-color 0.2s ease; }
+
+/* Hover baris tabel */
+.jt-table tbody tr { transition: background-color 0.15s ease; }
+.jt-table tbody tr:hover { background-color: #f8fafc; }
+
+/* Scrollbar tabel tipis biar clean */
+.jt-scroll::-webkit-scrollbar { height: 6px; width: 6px; }
+.jt-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+
+/* Mobile: cegah zoom iOS + tap target gede */
+@media (max-width: 640px) {
+  input, select, textarea { font-size: 16px !important; }
+  .jt-card { box-shadow: 0 1px 3px rgba(15,23,42,0.06); }
+  main { padding-bottom: 24px; }
+}
